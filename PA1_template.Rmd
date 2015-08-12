@@ -6,20 +6,372 @@ output:
 ---
 
 
+## Loading of packages
+```{r message=F, warning=F}
+library(lubridate)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(lattice)
+library(knitr)
+```
 ## Loading and preprocessing the data
+### Step 1: Loading and preprocessing the data
+### Loading and preprocessing the data
 
+#### 1.1. Load the data (i.e. read.csv() )
+###### check the data
+```{r}
+readLines("activity.csv", 4)
+```
+###### read the data as csv
+```{r}
+data <- read.csv("activity.csv", header = TRUE)
+head(data)
+```
+###### check the class of the data
+```{r}
+class_data <- lapply(data, class)
+class_data
+```
 
 
 ## What is mean total number of steps taken per day?
+### Step 2: Calculation of the mean total number of steps taken per day
+
+#### 2.1 Calculation of sum of the steps per day ignoring the NA values
+#### The value assigned to the NA elements (missing values) is zero in this implementation
+#### This is accomplished through the na.rm = TRUE argument
+
+```{r}
+total_steps_per_day_data <- data %>% 
+        group_by(date) %>% 
+        summarise(steps_per_day = sum(steps, na.rm = TRUE)) %>%
+        ungroup
 
 
+head(total_steps_per_day_data)
+str(total_steps_per_day_data)
+head(total_steps_per_day_data$steps_per_day)
+```
+
+#### 2.2 Creation of a histogram of the number of steps
+
+```{r}
+hist(total_steps_per_day_data$steps_per_day, breaks = 8, xlab = "Total Steps per Day", col = "red", main = "Total Steps per Day (Frequency)", ylim = c(0,35))
+```
+
+#### 2.3 Calculation of the mean and median of the total steps per day
+
+## 
+```{r}
+mean_median_and_other_values <- summary(total_steps_per_day_data$steps_per_day)
+print(mean_median_and_other_values)
+```
 
 ## What is the average daily activity pattern?
+### Step 3: Identification of the average daily activity pattern
 
+#### 3.1 Make a time series plot (i.e. type = "l" ) of the 5-minute interval 
+#### (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
+##### 3.1.1 Calculation of the average number of steps taken, averaged across all days for each 
+##### 5-minute interval.
+##### The value assigned to the NA elements (missing values) is zero in this implementation
+##### This is accomplished through the na.rm = TRUE argument
+
+```{r}
+average_steps_per_interval_data <- data %>% 
+        group_by(interval) %>% 
+        summarise(steps_per_interval = mean(steps, na.rm = TRUE)) %>%
+        ungroup
+head(average_steps_per_interval_data)
+tail(average_steps_per_interval_data)
+str(average_steps_per_interval_data)
+head(average_steps_per_interval_data$steps_per_interval)
+```
+
+##### 3.1.2 Creation of the plot of the 5-minute interval (x-axis) 
+##### and the average number of steps taken, averaged across all days (y-axis)
+
+```{r}
+par(cex.lab = 0.8)
+plot(average_steps_per_interval_data$interval, average_steps_per_interval_data$steps_per_interval, ylab = "Number of steps averaged across all days", xlab = "Interval", type = "l", pch = 3, lwd =1, main = "Number of steps averaged across all days \n for each 5 minute interval", col = "blue")
+```
+
+#### 3.2 Identification of the 5-minute interval, on average across all the days in the dataset, 
+#### that contains the maximum number of steps
+
+```{r}
+interval_with_max_n_step_index <- which.max(average_steps_per_interval_data$steps_per_interval)
+interval_with_max_n_step_index
+```
+
+#### Interval with the maximum number of steps
+
+```{r}
+interval_with_max_n_steps <- average_steps_per_interval_data$interval[interval_with_max_n_step_index]
+interval_with_max_n_steps
+```
+
+#### check value and surrounding values
+
+```{r}
+average_steps_per_interval_data[100:106,]
+```
 
 ## Imputing missing values
+### Step 4: Inputting the missing  values
+
+#### 4.1 Calculation and report of the total number of missing values in the dataset 
+#### (i.e., the total number of rows with NAs)
+
+```{r}
+total_na_values <- sum(is.na(data$steps))
+
+print(total_na_values)
+```
+
+#### 4.2 Filling of all the missing values in the dataset. 
+#### It is possible to use the mean/median for that day, or the mean for that 
+#### 5-minute interval, etc. to accomplish this objective.
+#### In this implementation, the mean number of steps for each interval that was 
+#### calculated without the NA values will be used to fill in the missing values
+#### for the interval.
 
 
+#### 4.3 Creation of a new dataset that is equal to the original dataset, but with the missing data #### filled in
+##### 4.3.1 Add to the data a column with the mean for a specific interval
+
+```{r}
+data_with_average_steps_per_interval_data <- data %>% 
+        group_by(interval) %>% 
+        mutate(average_steps_per_interval = mean(steps, na.rm = TRUE)) %>%
+        ungroup
+head(data_with_average_steps_per_interval_data)
+tail(data_with_average_steps_per_interval_data)
+str(data_with_average_steps_per_interval_data)
+```
+
+##### 4.3.2 Selection of the rows with a steps value == NA
+
+```{r}
+na_values_selector <- is.na(data_with_average_steps_per_interval_data$steps)
+head(na_values_selector)
+```
+
+##### 4.3.3 For these rows set the values in the steps column so that they are equal 
+##### to the values in the column average_steps_per_interval
+
+```{r}
+data_with_average_steps_per_interval_data$steps[na_values_selector] <- data_with_average_steps_per_interval_data$average_steps_per_interval[na_values_selector]
+
+head(data_with_average_steps_per_interval_data$steps[na_values_selector])
+```
+
+##### 4.3.4 Verification to check if there are any NA values left 
+
+```{r}
+total_na_values_after_change <- sum(is.na(data_with_average_steps_per_interval_data$steps))
+
+print(total_na_values_after_change)
+```
+
+##### 4.3.5 Assignment of a new name to data
+
+```{r}
+data_without_na <- data_with_average_steps_per_interval_data
+head(data_without_na)
+```
+
+#### 4.4 Creation of a histogram of the total number of steps taken each day 
+#### and calculation and report of the mean and median total number of steps 
+#### taken per day
+
+##### 4.4.1 Calculation of sum of the steps per day for data without NA values
+##### (i.e., for data in which the NA values have been changed into calcualted
+##### values)
+
+```{r}
+
+total_steps_per_day_data_without_na <- data_without_na %>% 
+        group_by(date) %>% 
+        summarise(steps_per_day = sum(steps, na.rm = TRUE)) %>%
+        ungroup
+head(total_steps_per_day_data_without_na)
+str(total_steps_per_day_data_without_na)
+head(total_steps_per_day_data_without_na$steps_per_day)
+```
+
+##### 4.4.2 Creation of a histogram of the number of steps
+
+```{r}
+hist(total_steps_per_day_data_without_na$steps_per_day, breaks = 8, xlab = "Total Steps per Day", col = "red", main = "Total Steps per Day")
+```
+
+##### 4.4.3 Calculation of the mean and median of the total steps per day
+
+## 
+```{r}
+mean_median_and_other_values_no_na <- summary(total_steps_per_day_data_without_na$steps_per_day)
+print(mean_median_and_other_values_no_na)
+```
+
+
+###### 4.4.3.1 The values are more centered around the median after the elimination of the NA values,
+###### and the mean is at a higher value. Both the median and the mean have increased.
+
+
+##### 4.4.4 Analysis of how these values differ from the estimates in the first part of the  
+##### assignment.
+##### Analysis of the impact of imputing missing data on the estimates of the total daily number of ##### steps.
+
+###### 4.4.4.1 Creation of a dataset with the data with NA values and without NA values
+
+###### 4.4.4.1.1 Renaming of the column for the data without NA
+
+```{r}
+total_steps_per_day_data_without_na <- transmute(total_steps_per_day_data_without_na, date = date, steps_per_day_without_na = steps_per_day)
+total_steps_per_day_data_without_na
+```
+
+###### 4.4.4.1.2 Creation of a dataset for the comparison
+
+```{r}
+dim(total_steps_per_day_data)
+dim(total_steps_per_day_data_without_na)
+comparison_total_steps_per_day_data <- left_join(total_steps_per_day_data, total_steps_per_day_data_without_na, by ="date")
+head(comparison_total_steps_per_day_data)
+```
+
+###### 4.4.4.1.2 Modification of the dataset so there is a factor for the presence of NA
+
+```{r}
+comparison_total_steps_per_day_with_factor_data <- gather(comparison_total_steps_per_day_data, na_presence, steps, -date)
+head(comparison_total_steps_per_day_with_factor_data)
+str(comparison_total_steps_per_day_with_factor_data)
+```
+
+
+###### 4.4.4.1.3 Creation of a plot to show the difference between data with NA values and data without ###### NA values
+##
+
+```{r}
+g <- ggplot(comparison_total_steps_per_day_with_factor_data, aes(steps, color = na_presence))
+q <- g + geom_histogram(binwidth = 3000) + facet_grid(na_presence ~ .) + labs(title = "Total number of steps \ntaken each day (count)")
+print(q)
+```
+
+###### 4.4.4.1.4 Comparison of two boxplots with NA values and without NA values
+
+```{r}
+par(mfrow = c(1,1))
+boxplot(steps ~ na_presence, data = comparison_total_steps_per_day_with_factor_data, main="Comparison of Steps per Day between data that \nincludes NA values and data that does not")
+```
+###### 4.4.4.1.5 Comparison of median and mean values between data with NA values and data without NA ###### values
+
+###### Results for the data with NA values
+##
+
+```{r}
+mean_median_and_other_values <- summary(total_steps_per_day_data$steps_per_day)
+print(mean_median_and_other_values)
+```
+
+###### Results for the data without NA values
+## 
+
+```{r}
+mean_median_and_other_values_no_na <- summary(total_steps_per_day_data_without_na$steps_per_day)
+print(mean_median_and_other_values_no_na)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+### Step 5: Find if there are differences in activity patterns between weekdays and weekends
+
+###### For this step, the data without NA will be used.
+
+```{r}
+head(data_without_na)
+str(data_without_na)
+```
+
+#### 5.1 Creation of a new factor variable in the dataset with two levels, “weekday” and “weekend” 
+#### indicating whether a given date is a weekday or weekend day
+  
+
+##### 5.1.1 Modification of a date to change it into a date type
+
+```{r}
+data_without_na$date <- ymd(data_without_na$date)
+str(data_without_na)
+```
+
+##### 5.1.2 Addition of a column with weekdays
+
+```{r}
+
+data_without_na_with_weekdays <- mutate(data_without_na, day_of_the_week = weekdays(date))
+head(data_without_na_with_weekdays)
+str(data_without_na_with_weekdays)
+```
+
+##### 5.1.3 Creation of another column with a factor
+
+###### 5.1.3.1 Selection of the weekdays
+
+```{r}
+
+weekday_or_weekend <- ifelse(data_without_na_with_weekdays$day_of_the_week %in% c("Saturday", "Sunday"), "weekend", "weekday")
+head(weekday_or_weekend)
+length(weekday_or_weekend)
+str(weekday_or_weekend)
+```
+
+###### 5.1.3.2 Addition of a column with weekday_or_weekend
+
+```{r}
+data_without_na_with_weekdays_and_weekday_weekend_factor <- mutate(data_without_na_with_weekdays, weekday_or_weekend = weekday_or_weekend)
+head(data_without_na_with_weekdays_and_weekday_weekend_factor)
+tail(data_without_na_with_weekdays_and_weekday_weekend_factor)
+str(data_without_na_with_weekdays_and_weekday_weekend_factor)
+```
+
+###### 5.1.3.3 Modification of weekday_or_weekend to change it into a factor
+
+```{r}
+data_without_na_with_weekdays_and_weekday_weekend_factor$weekday_or_weekend <- as.factor(data_without_na_with_weekdays_and_weekday_weekend_factor$weekday_or_weekend)
+
+str(data_without_na_with_weekdays_and_weekday_weekend_factor)
+head(data_without_na_with_weekdays_and_weekday_weekend_factor)
+tail(data_without_na_with_weekdays_and_weekday_weekend_factor)
+```
+
+#### 5.2 Creation of a panel plot containing a time series plot (i.e. type = "l" ) of the 5-minute 
+#### interval (x-axis) and the average number of steps taken, averaged across all weekday days or 
+#### weekend days (y-axis)
+
+#####  5.2.1 Calculation of the average number of steps taken, averaged across all days for each 5-minute interval
+
+```{r}
+
+average_steps_per_interval_data <- data_without_na_with_weekdays_and_weekday_weekend_factor %>% 
+        group_by(interval, weekday_or_weekend) %>% 
+        summarise(steps_per_interval = mean(steps, na.rm = TRUE)) %>%
+        ungroup
+head(average_steps_per_interval_data)
+tail(average_steps_per_interval_data)
+str(average_steps_per_interval_data)
+head(average_steps_per_interval_data$steps_per_interval)
+tail(average_steps_per_interval_data$steps_per_interval)
+str(average_steps_per_interval_data$steps_per_interval)
+```
+
+##### 5.2.2 Creation of the plot of the 5-minute interval (x-axis) 
+##### and the average number of steps taken, averaged across all days (y-axis)
+## 
+
+```{r}
+xyplot(steps_per_interval ~ interval | weekday_or_weekend,  data = average_steps_per_interval_data, layout = c(1,2), type = "l", main = "Average Number of Steps Averaged Across All Days", xlab = "Interval", ylab = "Steps per Interval")
+```
